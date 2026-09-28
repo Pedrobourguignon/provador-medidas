@@ -1,36 +1,25 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Provador de Medidas
 
-## Getting Started
+Site 100% frontend (Next.js) em que a cliente escolhe a peça (sutiã ou calcinha), informa suas medidas, vê no manequim 3D onde medir e recebe o tamanho equivalente.
 
-First, run the development server:
+## Rodar
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
+npm run build    # build de produção
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Como funciona
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Ao selecionar um campo, uma fita amarela no manequim 3D mostra onde medir e aparecem as instruções passo a passo (textos em `src/lib/medicao.ts`).
+- **Sutiã:** sub-busto e busto (o sub-busto pesa mais no cálculo).
+- **Calcinha:** cintura e quadril (o quadril pesa mais no cálculo).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Tabelas de tamanhos
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Ficam em `src/data/tabela-sutia.json` e `src/data/tabela-calcinha.json` (PP a XXG, com faixas médias de mercado).
+- Cada linha tem o nome do tamanho e as faixas `<medida>Min` / `<medida>Max` em cm.
+- O tamanho recomendado é a linha em que todas as medidas caem dentro das faixas (empate: a mais próxima do centro). Se nenhuma linha contém as medidas, mostra a mais próxima com um aviso.
+- Para alterar os tamanhos, edite o JSON e publique novamente.
+- Para adicionar outra peça, cadastre-a em `src/lib/produtos.ts` com as medidas que ela usa.

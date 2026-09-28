@@ -1,0 +1,51 @@
+[
+  {
+    "tamanho": "PP",
+    "cinturaMin": 58,
+    "cinturaMax": 63,
+    "quadrilMin": 84,
+    "quadrilMax": 89
+  },
+  {
+    "tamanho": "P",
+    "cinturaMin": 63,
+    "cinturaMax": 68,
+    "quadrilMin": 89,
+    "quadrilMax": 94
+  },
+  {
+    "tamanho": "M",
+    "cinturaMin": 68,
+    "cinturaMax": 73,
+    "quadrilMin": 94,
+    "quadrilMax": 99
+  },
+  {
+    "tamanho": "G",
+    "cinturaMin": 73,
+    "cinturaMax": 78,
+    "quadrilMin": 99,
+    "quadrilMax": 104
+  },
+  {
+    "tamanho": "GG",
+    "cinturaMin": 78,
+    "cinturaMax": 84,
+    "quadrilMin": 104,
+    "quadrilMax": 110
+  },
+  {
+    "tamanho": "XG",
+    "cinturaMin": 84,
+    "cinturaMax": 90,
+    "quadrilMin": 110,
+    "quadrilMax": 116
+  },
+  {
+    "tamanho": "XXG",
+    "cinturaMin": 90,
+    "cinturaMax": 96,
+    "quadrilMin": 116,
+    "quadrilMax": 122
+  }
+]
