@@ -14,7 +14,12 @@ type Anel = { y: number; circ: number; k: number }; // k = profundidade / largur
 
 const COR_PELE = "#efe1d3";
 const COR_PECA = "#d6457a";
+const COR_PECA_ESCURA = "#b8325f";
+const COR_PECA_CLARA = "#f0a3bf";
 const Y_CALCINHA = 0.17;
+const Y_CINTURA = 0.27;
+const Y_BARRA_CAMISA = 0.12;
+const Y_GOLA = 0.615;
 const COR_FITA = "#f2a900";
 
 const SUB_BUSTO = 76;
@@ -60,9 +65,14 @@ const PERFIL = (() => {
   return new THREE.CatmullRomCurve3(controle, false, "centripetal").getPoints(140);
 })();
 
-/** Superfície do tronco; com `ateY`/`folga` gera só a parte de baixo, levemente maior (usada na calcinha). */
-function criarTronco(ateY = Infinity, folga = 1) {
-  const perfil = PERFIL.filter((p) => p.y <= ateY);
+/** Semi-eixos do tronco na altura `y` (ponto mais próximo do perfil). */
+function perfilEm(y: number) {
+  return PERFIL.reduce((m, p) => (Math.abs(p.y - y) < Math.abs(m.y - y) ? p : m));
+}
+
+/** Superfície do tronco; com `desdeY`/`ateY`/`folga` gera só uma faixa, levemente maior (usada nas peças). */
+function criarTronco(ateY = Infinity, folga = 1, desdeY = -Infinity) {
+  const perfil = PERFIL.filter((p) => p.y >= desdeY && p.y <= ateY);
   const segmentos = 72;
   const posicoes: number[] = [];
   const indices: number[] = [];
@@ -86,6 +96,14 @@ function criarTronco(ateY = Infinity, folga = 1) {
   geo.setIndex(indices);
   geo.computeVertexNormals();
   return geo;
+}
+
+/** Contorno (acabamento/elástico) do tronco na altura `y`. */
+function criarContorno(y: number, folga: number, raio = 0.004) {
+  const p = perfilEm(y);
+  const curva = new THREE.EllipseCurve(0, 0, p.x * folga, p.z * folga).getPoints(96);
+  const pontos = curva.map((c) => new THREE.Vector3(c.x, p.y, c.y));
+  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pontos, true), 128, raio, 8, true);
 }
 
 function criarAlcas() {
@@ -120,6 +138,75 @@ function envoltoria(pontos: THREE.Vector2[]) {
     superior.push(p);
   }
   return inferior.slice(0, -1).concat(superior.slice(0, -1));
+}
+
+/** Distância da origem até o polígono convexo na direção (sin t, cos t) — o polígono está no plano xz. */
+function raioNaDirecao(poligono: THREE.Vector2[], t: number) {
+  const dx = Math.sin(t);
+  const dz = Math.cos(t);
+  let melhor = 0;
+  for (let i = 0; i < poligono.length; i++) {
+    const p = poligono[i];
+    const q = poligono[(i + 1) % poligono.length];
+    const ex = q.x - p.x;
+    const ez = q.y - p.y;
+    const det = dx * -ez - dz * -ex;
+    if (Math.abs(det) < 1e-9) continue;
+    const dist = (p.x * -ez - p.y * -ex) / det;
+    const u = (dx * p.y - dz * p.x) / det;
+    if (dist > 0 && u >= 0 && u <= 1) melhor = Math.max(melhor, dist);
+  }
+  return melhor;
+}
+
+/**
+ * Camisa: como o tronco, mas cada anel é a envoltória do corpo + seios naquela altura,
+ * para o tecido cobrir o busto em vez de contornar cada seio.
+ */
+function criarCamisa(desdeY: number, ateY: number, folga: number) {
+  const perfil = PERFIL.filter((p) => p.y >= desdeY && p.y <= ateY);
+  const segmentos = 72;
+  const posicoes: number[] = [];
+  const indices: number[] = [];
+
+  perfil.forEach((p) => {
+    const pontos: THREE.Vector2[] = [];
+    for (let i = 0; i < 72; i++) {
+      const t = (i / 72) * Math.PI * 2;
+      pontos.push(new THREE.Vector2(Math.sin(t) * p.x, Math.cos(t) * p.z));
+    }
+    // Corte do seio (esfera escalada [1, 0.95, 0.85]) na altura do anel, com folga para a rotação.
+    const dy = (p.y - Y_MAMA) / 0.95;
+    const r = RAIO_MAMA * 1.08;
+    if (Math.abs(dy) < r) {
+      const rc = Math.sqrt(r * r - dy * dy);
+      for (const lado of [-1, 1]) {
+        for (let i = 0; i < 32; i++) {
+          const t = (i / 32) * Math.PI * 2;
+          pontos.push(new THREE.Vector2(lado * X_MAMA + Math.cos(t) * rc, Z_MAMA + Math.sin(t) * rc * 0.85));
+        }
+      }
+    }
+    const contorno = envoltoria(pontos);
+    for (let s = 0; s <= segmentos; s++) {
+      const t = (s / segmentos) * Math.PI * 2;
+      const raio = raioNaDirecao(contorno, t) * folga;
+      posicoes.push(Math.sin(t) * raio, p.y, Math.cos(t) * raio);
+    }
+  });
+  for (let r = 0; r < perfil.length - 1; r++) {
+    for (let s = 0; s < segmentos; s++) {
+      const i = r * (segmentos + 1) + s;
+      const j = i + segmentos + 1;
+      indices.push(i, i + 1, j, i + 1, j + 1, j);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(posicoes, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
 }
 
 /** Fita métrica ao redor do corpo na altura da área escolhida. */
@@ -170,20 +257,139 @@ function Fita({ area }: { area: AreaMedida }) {
   );
 }
 
+function Material({ cor = COR_PECA, transparente = false }: { cor?: string; transparente?: boolean }) {
+  return (
+    <meshStandardMaterial
+      color={cor}
+      roughness={0.5}
+      side={THREE.DoubleSide}
+      transparent={transparente}
+      opacity={transparente ? 0.55 : 1}
+      depthWrite={!transparente}
+    />
+  );
+}
+
+/** Bojos: meia esfera frontal cobrindo a parte inferior de cada seio. */
+function Bojos() {
+  return [-1, 1].map((lado) => (
+    <group key={lado} position={[lado * X_MAMA, Y_MAMA, Z_MAMA]} rotation={[0.12, lado * 0.32, 0]}>
+      <mesh scale={[1, 0.95, 0.85]}>
+        <sphereGeometry args={[RAIO_MAMA * 1.06, 48, 32, 0, Math.PI, Math.PI * 0.3, Math.PI * 0.55]} />
+        <Material />
+      </mesh>
+    </group>
+  ));
+}
+
+function Banda() {
+  return (
+    <mesh position={[0, 0.405, 0]} scale={[BASE_SUB.a * 1.03, 1, BASE_SUB.b * 1.03]}>
+      <cylinderGeometry args={[1, 1, 0.035, 72, 1, true]} />
+      <Material />
+    </mesh>
+  );
+}
+
+function Sutia() {
+  const alcas = useMemo(() => criarAlcas(), []);
+  return (
+    <>
+      <Bojos />
+      <Banda />
+      <mesh geometry={alcas}>
+        <Material />
+      </mesh>
+    </>
+  );
+}
+
+function Calcinha() {
+  const calcinha = useMemo(() => criarTronco(Y_CALCINHA, 1.012), []);
+  const elastico = useMemo(() => criarContorno(Y_CALCINHA, 1.02), []);
+  return (
+    <>
+      <mesh geometry={calcinha}>
+        <Material />
+      </mesh>
+      <mesh geometry={elastico}>
+        <Material cor={COR_PECA_ESCURA} />
+      </mesh>
+    </>
+  );
+}
+
+function Pijama() {
+  const camisa = useMemo(() => criarCamisa(Y_BARRA_CAMISA, Y_GOLA, 1.018), []);
+  const barra = useMemo(() => criarContorno(Y_BARRA_CAMISA, 1.02), []);
+  const gola = useMemo(() => criarContorno(Y_GOLA, 1.02, 0.006), []);
+  const short = useMemo(() => criarTronco(Y_CINTURA, 1.01), []);
+  const botoes = [0.16, 0.22, 0.28, 0.34].map((y) => [0, y, perfilEm(y).z * 1.018 + 0.002] as const);
+  return (
+    <>
+      <mesh geometry={short}>
+        <Material cor={COR_PECA_CLARA} />
+      </mesh>
+      <mesh geometry={camisa}>
+        <Material />
+      </mesh>
+      {[barra, gola].map((g, i) => (
+        <mesh key={i} geometry={g}>
+          <Material cor={COR_PECA_ESCURA} />
+        </mesh>
+      ))}
+      {botoes.map((pos) => (
+        <mesh key={pos[1]} position={pos} scale={[1, 1, 0.4]}>
+          <sphereGeometry args={[0.006, 16, 12]} />
+          <meshStandardMaterial color="#fff5ee" roughness={0.3} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
+/** Blusa do baby doll em evasê: sai logo abaixo do busto e abre até a altura do quadril. */
+const EVASE = { topo: 0.39, barra: 0.03, abertura: 1.42 };
+
+function BabyDoll() {
+  const alcas = useMemo(() => criarAlcas(), []);
+  const { topo, barra, abertura } = EVASE;
+  const babado = useMemo(() => {
+    const curva = new THREE.EllipseCurve(0, 0, BASE_SUB.a * 1.03 * abertura, BASE_SUB.b * 1.03 * abertura);
+    const pontos = curva.getPoints(96).map((c) => new THREE.Vector3(c.x, barra, c.y));
+    return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pontos, true), 128, 0.004, 8, true);
+  }, [abertura, barra]);
+  return (
+    <>
+      <Calcinha />
+      <Bojos />
+      <Banda />
+      <mesh geometry={alcas}>
+        <Material />
+      </mesh>
+      <mesh position={[0, (topo + barra) / 2, 0]} scale={[BASE_SUB.a * 1.03, 1, BASE_SUB.b * 1.03]}>
+        <cylinderGeometry args={[1, abertura, topo - barra, 72, 1, true]} />
+        <Material transparente />
+      </mesh>
+      <mesh geometry={babado}>
+        <Material cor={COR_PECA_ESCURA} />
+      </mesh>
+    </>
+  );
+}
+
+const PECAS: Record<ProdutoId, () => React.ReactNode> = {
+  sutia: Sutia,
+  calcinha: Calcinha,
+  pijama: Pijama,
+  babyDoll: BabyDoll,
+};
+
 type PropsManequim = { peca: ProdutoId; mostrarPeca: boolean; destaque: AreaMedida | null };
 
 function Manequim({ peca, mostrarPeca, destaque }: PropsManequim) {
   const tronco = useMemo(() => criarTronco(), []);
-  const alcas = useMemo(() => criarAlcas(), []);
-  const calcinha = useMemo(() => criarTronco(Y_CALCINHA, 1.012), []);
-  const elastico = useMemo(() => {
-    const topo = PERFIL.filter((p) => p.y <= Y_CALCINHA).at(-1)!;
-    const curva = new THREE.EllipseCurve(0, 0, topo.x * 1.02, topo.z * 1.02).getPoints(96);
-    const pontos = curva.map((p) => new THREE.Vector3(p.x, topo.y, p.y));
-    return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pontos, true), 128, 0.004, 8, true);
-  }, []);
-  const mostrarSutia = mostrarPeca && peca === "sutia";
-  const mostrarCalcinha = mostrarPeca && peca === "calcinha";
+  const Peca = PECAS[peca];
 
   return (
     <group position={[0, -0.35, 0]}>
@@ -197,38 +403,10 @@ function Manequim({ peca, mostrarPeca, destaque }: PropsManequim) {
             <sphereGeometry args={[RAIO_MAMA, 48, 32]} />
             <meshStandardMaterial color={COR_PELE} roughness={0.75} />
           </mesh>
-          {mostrarSutia && (
-            <mesh scale={[1, 0.95, 0.85]}>
-              {/* Meia esfera frontal cobrindo a parte inferior do seio */}
-              <sphereGeometry args={[RAIO_MAMA * 1.06, 48, 32, 0, Math.PI, Math.PI * 0.3, Math.PI * 0.55]} />
-              <meshStandardMaterial color={COR_PECA} roughness={0.5} side={THREE.DoubleSide} />
-            </mesh>
-          )}
         </group>
       ))}
 
-      {mostrarSutia && (
-        <>
-          <mesh position={[0, 0.405, 0]} scale={[BASE_SUB.a * 1.03, 1, BASE_SUB.b * 1.03]}>
-            <cylinderGeometry args={[1, 1, 0.035, 72, 1, true]} />
-            <meshStandardMaterial color={COR_PECA} roughness={0.5} side={THREE.DoubleSide} />
-          </mesh>
-          <mesh geometry={alcas}>
-            <meshStandardMaterial color={COR_PECA} roughness={0.5} />
-          </mesh>
-        </>
-      )}
-
-      {mostrarCalcinha && (
-        <>
-          <mesh geometry={calcinha}>
-            <meshStandardMaterial color={COR_PECA} roughness={0.5} />
-          </mesh>
-          <mesh geometry={elastico}>
-            <meshStandardMaterial color="#b8325f" roughness={0.5} />
-          </mesh>
-        </>
-      )}
+      {mostrarPeca && <Peca />}
 
       {destaque && <Fita area={destaque} />}
 

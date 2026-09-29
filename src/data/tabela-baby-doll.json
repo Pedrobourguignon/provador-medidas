@@ -1,0 +1,51 @@
+[
+  {
+    "tamanho": "PP",
+    "bustoMin": 78,
+    "bustoMax": 83,
+    "quadrilMin": 84,
+    "quadrilMax": 89
+  },
+  {
+    "tamanho": "P",
+    "bustoMin": 83,
+    "bustoMax": 88,
+    "quadrilMin": 89,
+    "quadrilMax": 94
+  },
+  {
+    "tamanho": "M",
+    "bustoMin": 88,
+    "bustoMax": 93,
+    "quadrilMin": 94,
+    "quadrilMax": 99
+  },
+  {
+    "tamanho": "G",
+    "bustoMin": 93,
+    "bustoMax": 98,
+    "quadrilMin": 99,
+    "quadrilMax": 104
+  },
+  {
+    "tamanho": "GG",
+    "bustoMin": 98,
+    "bustoMax": 104,
+    "quadrilMin": 104,
+    "quadrilMax": 110
+  },
+  {
+    "tamanho": "XG",
+    "bustoMin": 104,
+    "bustoMax": 110,
+    "quadrilMin": 110,
+    "quadrilMax": 116
+  },
+  {
+    "tamanho": "XXG",
+    "bustoMin": 110,
+    "bustoMax": 116,
+    "quadrilMin": 116,
+    "quadrilMax": 122
+  }
+]

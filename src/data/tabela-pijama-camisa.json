@@ -1,0 +1,51 @@
+[
+  {
+    "tamanho": "PP",
+    "bustoMin": 78,
+    "bustoMax": 83,
+    "cinturaMin": 58,
+    "cinturaMax": 63
+  },
+  {
+    "tamanho": "P",
+    "bustoMin": 83,
+    "bustoMax": 88,
+    "cinturaMin": 63,
+    "cinturaMax": 68
+  },
+  {
+    "tamanho": "M",
+    "bustoMin": 88,
+    "bustoMax": 94,
+    "cinturaMin": 68,
+    "cinturaMax": 74
+  },
+  {
+    "tamanho": "G",
+    "bustoMin": 94,
+    "bustoMax": 100,
+    "cinturaMin": 74,
+    "cinturaMax": 80
+  },
+  {
+    "tamanho": "GG",
+    "bustoMin": 100,
+    "bustoMax": 106,
+    "cinturaMin": 80,
+    "cinturaMax": 86
+  },
+  {
+    "tamanho": "XG",
+    "bustoMin": 106,
+    "bustoMax": 112,
+    "cinturaMin": 86,
+    "cinturaMax": 92
+  },
+  {
+    "tamanho": "XXG",
+    "bustoMin": 112,
+    "bustoMax": 118,
+    "cinturaMin": 92,
+    "cinturaMax": 98
+  }
+]

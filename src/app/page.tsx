@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { DICAS_GERAIS, INSTRUCOES, type AreaMedida } from "@/lib/medicao";
-import { LISTA_PRODUTOS, PRODUTOS, type ProdutoId } from "@/lib/produtos";
+import { LISTA_PRODUTOS, PRODUTOS, medidasDoProduto, type ProdutoId } from "@/lib/produtos";
 import { encontrarTamanho } from "@/lib/sizes";
 
 const Mannequin3D = dynamic(() => import("@/components/Mannequin3D"), {
@@ -34,15 +34,24 @@ export default function Home() {
   const numeros = Object.fromEntries(
     Object.entries(valores).map(([k, v]) => [k, numero(v)]),
   ) as Record<AreaMedida, number>;
-  const medidasValidas = produto.medidas.every((m) => Number.isFinite(numeros[m.id]));
+  const medidas = medidasDoProduto(produto);
+  const medidasValidas = medidas.every((id) => Number.isFinite(numeros[id]));
   const erro = medidasValidas ? (produto.validar?.(numeros) ?? null) : null;
-  const resultado = medidasValidas && !erro ? encontrarTamanho(produto.tabelaPadrao, produtoId, numeros) : null;
+  const resultados =
+    medidasValidas && !erro
+      ? produto.partes.map((parte) => ({
+          parte,
+          resultado: encontrarTamanho(parte.tabelaPadrao, parte.medidas, numeros),
+        }))
+      : [];
   const instrucao = INSTRUCOES[ativo];
-  const nomesMedidas = produto.medidas.map((m) => INSTRUCOES[m.id].rotulo.toLowerCase()).join(" e ");
+  const rotulos = medidas.map((id) => INSTRUCOES[id].rotulo.toLowerCase());
+  const nomesMedidas = rotulos.length > 1 ? `${rotulos.slice(0, -1).join(", ")} e ${rotulos.at(-1)}` : rotulos[0];
+  const tamanhosDiferentes = new Set(resultados.map((r) => r.resultado?.linha.tamanho)).size > 1;
 
   function trocarProduto(id: ProdutoId) {
     setProdutoId(id);
-    setAtivo(PRODUTOS[id].medidas[0].id);
+    setAtivo(medidasDoProduto(PRODUTOS[id])[0]);
   }
 
   return (
@@ -58,14 +67,14 @@ export default function Home() {
         </div>
       </header>
 
-      <div role="tablist" className="flex w-fit gap-1 rounded-full bg-white p-1 shadow-sm ring-1 ring-stone-200">
+      <div role="tablist" className="flex w-fit flex-wrap gap-1 rounded-3xl bg-white p-1 shadow-sm ring-1 ring-stone-200">
         {LISTA_PRODUTOS.map((p) => (
           <button
             key={p.id}
             role="tab"
             aria-selected={produtoId === p.id}
             onClick={() => trocarProduto(p.id)}
-            className={`rounded-full px-6 py-2 text-sm font-medium transition-colors ${
+            className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
               produtoId === p.id ? "bg-rose-600 text-white" : "text-stone-600 hover:bg-stone-100"
             }`}
           >
@@ -78,7 +87,7 @@ export default function Home() {
         <section className="flex flex-col gap-5 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200">
           <h2 className="text-lg font-semibold">Suas medidas para {produto.nome.toLowerCase()}</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            {produto.medidas.map(({ id }) => {
+            {medidas.map((id) => {
               const c = INSTRUCOES[id];
               return (
                 <label key={id} className="flex flex-col gap-1">
@@ -113,7 +122,7 @@ export default function Home() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-semibold">Como medir</h3>
               <div className="flex gap-1 rounded-full bg-white p-1 ring-1 ring-stone-200">
-                {produto.medidas.map(({ id }) => (
+                {medidas.map((id) => (
                   <button
                     key={id}
                     type="button"
@@ -150,11 +159,24 @@ export default function Home() {
           <div className="mt-auto rounded-xl bg-rose-50 p-5 ring-1 ring-rose-100">
             {!medidasValidas && <p className="text-stone-600">Preencha {nomesMedidas} para ver o seu tamanho.</p>}
             {erro && <p className="text-rose-700">{erro}</p>}
-            {resultado && (
+            {resultados.length > 0 && resultados.every((r) => r.resultado) && (
               <div>
                 <p className="text-sm text-stone-600">Seu tamanho de {produto.nome.toLowerCase()} recomendado</p>
-                <p className="text-5xl font-bold text-rose-600">{resultado.linha.tamanho}</p>
-                {!resultado.exato && (
+                <div className="flex flex-wrap gap-x-10 gap-y-2">
+                  {resultados.map(({ parte, resultado }) => (
+                    <div key={parte.nome}>
+                      {resultados.length > 1 && <p className="mt-1 text-sm font-medium">{parte.nome}</p>}
+                      <p className="text-5xl font-bold text-rose-600">{resultado!.linha.tamanho}</p>
+                    </div>
+                  ))}
+                </div>
+                {tamanhosDiferentes && (
+                  <p className="mt-2 text-sm text-stone-600">
+                    As partes ficaram em tamanhos diferentes. Se o {produto.nome.toLowerCase()} for vendido só em
+                    conjunto, prefira o maior para ficar confortável.
+                  </p>
+                )}
+                {resultados.some((r) => !r.resultado!.exato) && (
                   <p className="mt-2 text-sm text-stone-600">
                     Suas medidas ficam entre dois tamanhos da tabela; este é o mais próximo. Se tiver dúvida,
                     fale com a nossa equipe.
@@ -162,7 +184,7 @@ export default function Home() {
                 )}
               </div>
             )}
-            {medidasValidas && !erro && !resultado && (
+            {medidasValidas && !erro && !resultados.every((r) => r.resultado) && (
               <p className="text-stone-600">Nenhuma tabela de tamanhos cadastrada.</p>
             )}
           </div>
